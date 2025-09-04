@@ -230,9 +230,9 @@ geometric_mean <- function(x, na.rm = TRUE) {
 # --- 3. Load and Pre-process Data ---
 final_sf_column_names <- c(
   "UWI", "GSL_UWI", "SurfaceLatitude", "SurfaceLongitude", 
-  "BH_Latitude", "BH_Longitude", "LateralLength", 
-  "AbandonmentDate", "WellName", "CurrentStatus", "OperatorCode", "StratUnitID", 
-  "SpudDate", "CompletionDate", "FinalTD", "ProvinceState", "Country", 
+  "BH_Latitude", "BH_Longitude", "LateralLength",
+  "AbandonmentDate", "WellName", "CurrentStatus", "OperatorCode", "StratUnitID",
+  "SpudDate", "FirstProdDate", "FinalTD", "ProvinceState", "Country",
   "UWI_Std", "GSL_UWI_Std", "OperatorName", "Formation", "FieldName",
   "ConfidentialType"
 )
@@ -245,7 +245,7 @@ empty_wells_df_for_sf$LateralLength <- numeric()
 empty_wells_df_for_sf$AbandonmentDate <- as.Date(character()); empty_wells_df_for_sf$WellName <- character()
 empty_wells_df_for_sf$CurrentStatus <- character(); empty_wells_df_for_sf$OperatorCode <- character() 
 empty_wells_df_for_sf$StratUnitID <- character(); empty_wells_df_for_sf$SpudDate <- as.Date(character())
-empty_wells_df_for_sf$CompletionDate <- as.Date(character()); empty_wells_df_for_sf$FinalTD <- numeric()
+empty_wells_df_for_sf$FirstProdDate <- as.Date(character()); empty_wells_df_for_sf$FinalTD <- numeric()
 empty_wells_df_for_sf$ProvinceState <- character(); empty_wells_df_for_sf$Country <- character()
 empty_wells_df_for_sf$UWI_Std <- character(); empty_wells_df_for_sf$GSL_UWI_Std <- character()
 empty_wells_df_for_sf$OperatorName <- character(); empty_wells_df_for_sf$Formation <- character()    
@@ -267,7 +267,7 @@ if (file.exists(processed_rds_file)) {
     wells_ok <- !is.null(loaded_data$wells_sf) && inherits(loaded_data$wells_sf, "sf") &&
       nrow(loaded_data$wells_sf) > 0 &&
       all(final_sf_column_names %in% names(sf::st_drop_geometry(loaded_data$wells_sf))) &&
-      ("CompletionDate" %in% names(loaded_data$wells_sf) && inherits(loaded_data$wells_sf$CompletionDate, "Date"))
+      ("FirstProdDate" %in% names(loaded_data$wells_sf) && inherits(loaded_data$wells_sf$FirstProdDate, "Date"))
     
     play_layers_ok <- !is.null(loaded_data$play_subplay_layers_list) && is.list(loaded_data$play_subplay_layers_list)
     company_layers_ok <- !is.null(loaded_data$company_layers_list) && is.list(loaded_data$company_layers_list)
@@ -318,7 +318,7 @@ if (load_from_db) {
     "SELECT W.UWI, W.GSL_UWI, W.SURFACE_LATITUDE, W.SURFACE_LONGITUDE, ",
     "W.BOTTOM_HOLE_LATITUDE, W.BOTTOM_HOLE_LONGITUDE, W.GSL_FULL_LATERAL_LENGTH, ", 
     "W.ABANDONMENT_DATE, W.WELL_NAME, W.CURRENT_STATUS, W.OPERATOR AS OPERATOR_CODE, W.CONFIDENTIAL_TYPE, ",
-    "P.STRAT_UNIT_ID, W.SPUD_DATE, W.COMPLETION_DATE, W.FINAL_TD, W.PROVINCE_STATE, W.COUNTRY, FL.FIELD_NAME ",
+    "P.STRAT_UNIT_ID, W.SPUD_DATE, W.FIRST_PROD_DATE, W.FINAL_TD, W.PROVINCE_STATE, W.COUNTRY, FL.FIELD_NAME ",
     "FROM WELL W ", 
     "LEFT JOIN PDEN P ON W.GSL_UWI = P.GSL_UWI ",
     "LEFT JOIN FIELD FL ON W.ASSIGNED_FIELD = FL.FIELD_ID ",
@@ -384,9 +384,9 @@ if (load_from_db) {
       "BOTTOM_HOLE_LATITUDE"="BH_Latitude", "BOTTOM_HOLE_LONGITUDE"="BH_Longitude", 
       "GSL_FULL_LATERAL_LENGTH"="LateralLength", # Updated mapping for LateralLength
       "ABANDONMENT_DATE"="AbandonmentDate", "WELL_NAME"="WellName", "CURRENT_STATUS"="CurrentStatus", 
-      "OPERATOR_CODE"="OperatorCode", "STRAT_UNIT_ID"="StratUnitID", 
-      "SPUD_DATE"="SpudDate", "COMPLETION_DATE"="CompletionDate", 
-      "FINAL_TD"="FinalTD", "PROVINCE_STATE"="ProvinceState", "COUNTRY"="Country", 
+      "OPERATOR_CODE"="OperatorCode", "STRAT_UNIT_ID"="StratUnitID",
+      "SPUD_DATE"="SpudDate", "FIRST_PROD_DATE"="FirstProdDate",
+      "FINAL_TD"="FinalTD", "PROVINCE_STATE"="ProvinceState", "COUNTRY"="Country",
       "UWI_Std"="UWI_Std", "GSL_UWI_Std"="GSL_UWI_Std", 
       "OperatorNameDisplay"="OperatorName", "Formation"="Formation", "FieldName"="FieldName",
       "CONFIDENTIAL_TYPE"="ConfidentialType"
@@ -427,7 +427,7 @@ if (load_from_db) {
     
     if("SurfaceLatitude" %in% names(combined_wells_dt) && !is.numeric(combined_wells_dt$SurfaceLatitude)) combined_wells_dt[, SurfaceLatitude := as.numeric(SurfaceLatitude)]
     if("SurfaceLongitude" %in% names(combined_wells_dt) && !is.numeric(combined_wells_dt$SurfaceLongitude)) combined_wells_dt[, SurfaceLongitude := as.numeric(SurfaceLongitude)]
-    date_cols_to_convert_pascal <- c("SpudDate", "CompletionDate", "AbandonmentDate") 
+    date_cols_to_convert_pascal <- c("SpudDate", "FirstProdDate", "AbandonmentDate")
     for(dc_pascal in date_cols_to_convert_pascal){ if(dc_pascal %in% names(combined_wells_dt) && !inherits(combined_wells_dt[[dc_pascal]], "Date")){ current_col_values <- combined_wells_dt[[dc_pascal]]; if(inherits(current_col_values, "POSIXct") || inherits(current_col_values, "POSIXlt")) { combined_wells_dt[, (dc_pascal) := as.Date(current_col_values)] } else { combined_wells_dt[, (dc_pascal) := as.Date(as.character(current_col_values), origin = "1970-01-01")] } } }
     combined_wells_for_sf <- combined_wells_dt[!is.na(SurfaceLatitude) & !is.na(SurfaceLongitude)]
     if (nrow(combined_wells_for_sf) > 0) {
@@ -559,7 +559,7 @@ ui <- fluidPage(
       pickerInput("formation_filter", "Formation:", choices = c("Loading..."=""), selected = NULL, multiple = TRUE, options = pickerOptions(actionsBox = TRUE, liveSearch = TRUE, noneSelectedText = "Filter by Formation...", virtualScroll = TRUE, size=10)),
       pickerInput("field_filter", "Field:", choices = c("Loading..."=""), selected = NULL, multiple = TRUE, options = pickerOptions(actionsBox = TRUE, liveSearch = TRUE, noneSelectedText = "Filter by Field...", virtualScroll = TRUE, size=10)), 
       pickerInput("province_filter", "Province/State:", choices = c("Loading..."=""), selected = NULL, multiple = TRUE, options = pickerOptions(actionsBox = TRUE, liveSearch = TRUE, noneSelectedText = "Filter by Province/State...", virtualScroll = TRUE, size=5)), 
-      dateRangeInput("well_date_filter", "Filter by Completion Date:",
+      dateRangeInput("well_date_filter", "Filter by First Production Date:",
                      start = Sys.Date() - years(10), end = Sys.Date(),
                      min = as.Date("1900-01-01"), max = Sys.Date(),
                      format = "yyyy-mm-dd", startview = "year", width="100%"),
@@ -607,11 +607,11 @@ ui <- fluidPage(
                             fluidRow(
                               column(6, 
                                      selectInput("filtered_group_breakout_by", "Normalize & Group By:", 
-                                                 choices = c("Operator" = "OperatorName", 
-                                                             "Formation" = "Formation", 
-                                                             "Field" = "FieldName", 
+                                                 choices = c("Operator" = "OperatorName",
+                                                             "Formation" = "Formation",
+                                                             "Field" = "FieldName",
                                                              "Province/State" = "ProvinceState",
-                                                             "Completion Year" = "CompletionYear"),
+                                                             "First Production Year" = "FirstProdYear"),
                                                  selected = "OperatorName")
                               ),
                               column(6,
@@ -620,12 +620,15 @@ ui <- fluidPage(
                             ),
                             hr(),
                             uiOutput("filtered_group_plot_title_normalized"), # Dynamic title
-                            plotOutput("filtered_group_cumulative_plot_normalized", height = "45vh"), 
+                            plotOutput("filtered_group_cumulative_plot_normalized", height = "45vh"),
+                            hr(),
+                            uiOutput("filtered_group_plot_title_calendar_rate"), # Dynamic title for calendar rate
+                            plotOutput("filtered_group_calendar_rate_plot", height = "45vh"),
                             hr(),
                             uiOutput("filtered_group_plot_title_cumulative_boe"), # Dynamic title for cumulative
                             plotOutput("filtered_group_cumulative_plot_cumulative_boe", height = "45vh"),
                             hr(),
-                            h5("Filtered Group Production Data Summary (by Selected Group)"), 
+                            h5("Filtered Group Production Data Summary (by Selected Group)"),
                             downloadButton("download_filtered_group_prod_data", "Download Summary as CSV"),
                             DT::dataTableOutput("filtered_group_production_table")
                    ),
@@ -680,10 +683,10 @@ server <- function(input, output, session) {
     wells_to_display = sf::st_sf(geometry = sf::st_sfc(), crs = 4326), 
     has_map_been_updated_once = FALSE, 
     current_selected_gsl_uwi_std = NULL,
-    min_prod_date = as.Date("1900-01-01"), 
+    min_prod_date = as.Date("1900-01-01"),
     max_prod_date = Sys.Date(),
-    min_completion_date_overall = as.Date("1900-01-01"), 
-    max_completion_date_overall = Sys.Date()          
+    min_first_prod_date_overall = as.Date("1900-01-01"),
+    max_first_prod_date_overall = Sys.Date()
   )
   
   # Initial population of pickers (non-cascading)
@@ -709,15 +712,15 @@ server <- function(input, output, session) {
                       choices = if(length(initial_company_layer_names)>0) initial_company_layer_names else c("No Layers Loaded" = ""), 
                       selected = NULL)
     
-    if (nrow(wells_sf_global) > 0 && "CompletionDate" %in% names(wells_sf_global) && inherits(wells_sf_global$CompletionDate, "Date") && sum(!is.na(wells_sf_global$CompletionDate)) > 0) {
-      min_comp_date <- min(wells_sf_global$CompletionDate, na.rm = TRUE)
-      max_comp_date <- max(wells_sf_global$CompletionDate, na.rm = TRUE)
-      reactive_vals$min_completion_date_overall <- min_comp_date
-      reactive_vals$max_completion_date_overall <- max_comp_date
-      default_start_date <- max(min_comp_date, max_comp_date - years(10), na.rm = TRUE)
+    if (nrow(wells_sf_global) > 0 && "FirstProdDate" %in% names(wells_sf_global) && inherits(wells_sf_global$FirstProdDate, "Date") && sum(!is.na(wells_sf_global$FirstProdDate)) > 0) {
+      min_first_date <- min(wells_sf_global$FirstProdDate, na.rm = TRUE)
+      max_first_date <- max(wells_sf_global$FirstProdDate, na.rm = TRUE)
+      reactive_vals$min_first_prod_date_overall <- min_first_date
+      reactive_vals$max_first_prod_date_overall <- max_first_date
+      default_start_date <- max(min_first_date, max_first_date - years(10), na.rm = TRUE)
       updateDateRangeInput(session, "well_date_filter",
-                           min = min_comp_date, max = max_comp_date,
-                           start = default_start_date, end = max_comp_date)
+                           min = min_first_date, max = max_first_date,
+                           start = default_start_date, end = max_first_date)
     } else {
       updateDateRangeInput(session, "well_date_filter",
                            min = as.Date("1900-01-01"), max = Sys.Date(),
@@ -738,11 +741,11 @@ server <- function(input, output, session) {
     updatePickerInput(session, "group_operator_filter", selected = character(0)) 
     updatePickerInput(session, "product_type_filter_analysis", selected = c("OIL", "CND", "GAS", "BOE")) 
     
-    default_start_date_reset <- max(reactive_vals$min_completion_date_overall, reactive_vals$max_completion_date_overall - years(10), na.rm = TRUE)
-    if (!is.finite(default_start_date_reset)) default_start_date_reset <- Sys.Date() - years(10) 
+    default_start_date_reset <- max(reactive_vals$min_first_prod_date_overall, reactive_vals$max_first_prod_date_overall - years(10), na.rm = TRUE)
+    if (!is.finite(default_start_date_reset)) default_start_date_reset <- Sys.Date() - years(10)
     updateDateRangeInput(session, "well_date_filter",
                          start = default_start_date_reset,
-                         end = reactive_vals$max_completion_date_overall)
+                         end = reactive_vals$max_first_prod_date_overall)
     
     reactive_vals$wells_to_display <- sf::st_sf(geometry=sf::st_sfc(), crs=4326) 
     reactive_vals$has_map_been_updated_once <- FALSE 
@@ -812,14 +815,14 @@ server <- function(input, output, session) {
     if (length(current_province_filter) > 0) { 
       if ("ProvinceState" %in% names(df)) df <- df %>% filter(ProvinceState %in% current_province_filter)
     }
-    if ("CompletionDate" %in% names(df) && inherits(df$CompletionDate, "Date")) {
+    if ("FirstProdDate" %in% names(df) && inherits(df$FirstProdDate, "Date")) {
       if (!is.na(current_date_filter_start) && !is.na(current_date_filter_end)) {
-        df <- df %>% filter(CompletionDate >= current_date_filter_start & CompletionDate <= current_date_filter_end)
+        df <- df %>% filter(FirstProdDate >= current_date_filter_start & FirstProdDate <= current_date_filter_end)
       } else {
         message("Date filter not applied as start or end date is NA.")
       }
     } else {
-      message("CompletionDate column not found or not Date type, skipping date filter.")
+      message("FirstProdDate column not found or not Date type, skipping date filter.")
     }
     reactive_vals$wells_to_display <- df
     reactive_vals$has_map_been_updated_once <- TRUE 
@@ -1020,7 +1023,7 @@ server <- function(input, output, session) {
         "<b>Formation:</b> ", htmltools::htmlEscape(df_map$Formation), "<br>", 
         "<b>Field:</b> ", htmltools::htmlEscape(df_map$FieldName), "<br>", 
         "<b>Status:</b> ", htmltools::htmlEscape(df_map$CurrentStatus), "<br>",
-        "<b>Completion Date:</b> ", htmltools::htmlEscape(as.character(df_map$CompletionDate))
+        "<b>First Prod Date:</b> ", htmltools::htmlEscape(as.character(df_map$FirstProdDate))
       )
       
       confidential_text_vec <- if ("ConfidentialType" %in% names(df_map)) {
@@ -1597,16 +1600,16 @@ server <- function(input, output, session) {
       showNotification("LateralLength column not found in well data. Cannot normalize.", type = "error", duration=5); 
       return(NULL) 
     }
-    breakout_cols_needed <- c("GSL_UWI_Std", "OperatorName", "LateralLength", "Formation", "FieldName", "ProvinceState", "CompletionDate")
+    breakout_cols_needed <- c("GSL_UWI_Std", "OperatorName", "LateralLength", "Formation", "FieldName", "ProvinceState", "FirstProdDate")
     breakout_cols_needed_present <- breakout_cols_needed[breakout_cols_needed %in% names(filtered_wells_sf_for_calc)]
     
     
     target_uwis_with_breakout_cols <- unique(as.data.table(sf::st_drop_geometry(filtered_wells_sf_for_calc))[, ..breakout_cols_needed_present]) 
     
-    if ("CompletionDate" %in% names(target_uwis_with_breakout_cols) && inherits(target_uwis_with_breakout_cols$CompletionDate, "Date")) {
-      target_uwis_with_breakout_cols[, CompletionYear := as.character(year(CompletionDate))]
+    if ("FirstProdDate" %in% names(target_uwis_with_breakout_cols) && inherits(target_uwis_with_breakout_cols$FirstProdDate, "Date")) {
+      target_uwis_with_breakout_cols[, FirstProdYear := as.character(year(FirstProdDate))]
     } else {
-      target_uwis_with_breakout_cols[, CompletionYear := NA_character_]
+      target_uwis_with_breakout_cols[, FirstProdYear := NA_character_]
     }
     
     
@@ -1716,7 +1719,9 @@ server <- function(input, output, session) {
     # Calendar cumulative plot is now also by the breakout_col_name
     agg_by_calendar_month_group <- prod_long[, .(
       TotalMonthlyBOE_Cal = sum(MonthlyOilTrueBBL_raw + MonthlyCondensateBBL_raw + (MonthlyGasMCF_raw / MCF_PER_BOE), na.rm = TRUE)
-    ), by = c("PROD_DATE", breakout_col_name)][order(get(breakout_col_name), PROD_DATE)] 
+    ), by = c("PROD_DATE", breakout_col_name)][order(get(breakout_col_name), PROD_DATE)]
+    agg_by_calendar_month_group[, DaysInMonth := lubridate::days_in_month(PROD_DATE)]
+    agg_by_calendar_month_group[, AvgDailyBOE_Cal := TotalMonthlyBOE_Cal / DaysInMonth]
     agg_by_calendar_month_group[, CumBOE_Calendar := cumsum(TotalMonthlyBOE_Cal), by = c(breakout_col_name)]
     
     # Table data: Aggregate on calendar basis, grouped by the selected breakout column
@@ -1746,27 +1751,37 @@ server <- function(input, output, session) {
     ))
   })
   output$filtered_group_plot_title_normalized <- renderUI({
-    breakout_choice_map <- c("OperatorName" = "Operator", 
-                             "Formation" = "Formation", 
-                             "FieldName" = "Field", 
+    breakout_choice_map <- c("OperatorName" = "Operator",
+                             "Formation" = "Formation",
+                             "FieldName" = "Field",
                              "ProvinceState" = "Province/State",
-                             "CompletionYear" = "Completion Year")
+                             "FirstProdYear" = "First Production Year")
     display_breakout_name <- breakout_choice_map[input$filtered_group_breakout_by]
     if(is.na(display_breakout_name) || is.null(display_breakout_name)) display_breakout_name <- input$filtered_group_breakout_by 
-    h5(paste("Average Daily BOE Rate per 1000ft Lateral by", display_breakout_name, "(Time Normalized)"))
+  h5(paste("Average Daily BOE Rate per 1000ft Lateral by", display_breakout_name, "(Time Normalized)"))
+  })
+  output$filtered_group_plot_title_calendar_rate <- renderUI({
+    breakout_choice_map <- c("OperatorName" = "Operator",
+                             "Formation" = "Formation",
+                             "FieldName" = "Field",
+                             "ProvinceState" = "Province/State",
+                             "FirstProdYear" = "First Production Year")
+    display_breakout_name <- breakout_choice_map[input$filtered_group_breakout_by]
+    if(is.na(display_breakout_name) || is.null(display_breakout_name)) display_breakout_name <- input$filtered_group_breakout_by
+    h5(paste("Average Daily BOE by", display_breakout_name, "(Calendar Time)"))
   })
   output$filtered_group_plot_title_cumulative_boe <- renderUI({
-    breakout_choice_map <- c("OperatorName" = "Operator", 
-                             "Formation" = "Formation", 
-                             "FieldName" = "Field", 
+    breakout_choice_map <- c("OperatorName" = "Operator",
+                             "Formation" = "Formation",
+                             "FieldName" = "Field",
                              "ProvinceState" = "Province/State",
-                             "CompletionYear" = "Completion Year")
+                             "FirstProdYear" = "First Production Year")
     display_breakout_name <- breakout_choice_map[input$filtered_group_breakout_by]
     if(is.na(display_breakout_name) || is.null(display_breakout_name)) display_breakout_name <- input$filtered_group_breakout_by
     h5(paste("Cumulative BOE Production by", display_breakout_name, "(Calendar Time)"))
   })
   
-  output$filtered_group_cumulative_plot_normalized <- renderPlot({ 
+  output$filtered_group_cumulative_plot_normalized <- renderPlot({
     analysis_data <- filtered_group_cumulative_data()
     req(analysis_data, analysis_data$normalized_data)
     plot_data <- analysis_data$normalized_data
@@ -1796,7 +1811,7 @@ server <- function(input, output, session) {
     p_norm <- ggplot(plot_data_for_ggplot, aes(x = MonthOnProd, y = AvgNormBOERate_per_1000ft, color = .data[[breakout_column_r_name]], group = .data[[breakout_column_r_name]])) +
       geom_line(linewidth = 1.2) + 
       scale_x_continuous(name = "Month on Production", breaks = scales::pretty_breaks(n=10)) + 
-      labs(color = names(which(c("OperatorName" = "Operator", "Formation" = "Formation", "FieldName" = "Field", "ProvinceState" = "Province/State", "CompletionYear" = "Completion Year") == breakout_column_r_name))) + 
+      labs(color = names(which(c("OperatorName" = "Operator", "Formation" = "Formation", "FieldName" = "Field", "ProvinceState" = "Province/State", "FirstProdYear" = "First Production Year") == breakout_column_r_name))) +
       theme_minimal(base_size = 12) + 
       theme(axis.text.x = element_text(angle = 45, hjust = 1), legend.position = "top") +
       scale_color_manual(values = group_colors_plot)
@@ -1828,7 +1843,65 @@ server <- function(input, output, session) {
     }
     return(p_norm)
   })
-  output$filtered_group_cumulative_plot_cumulative_boe <- renderPlot({ 
+  output$filtered_group_calendar_rate_plot <- renderPlot({
+    analysis_data <- filtered_group_cumulative_data()
+    req(analysis_data, analysis_data$calendar_cumulative_data)
+    plot_data <- analysis_data$calendar_cumulative_data
+
+    breakout_column_r_name_cal <- input$filtered_group_breakout_by
+
+    if(nrow(plot_data) == 0) {
+      return(ggplot() + labs(title = "No calendar rate data for filtered wells.", x = NULL, y = NULL) + theme_void())
+    }
+
+    plot_data_for_ggplot <- plot_data[!is.na(AvgDailyBOE_Cal) & is.finite(AvgDailyBOE_Cal)]
+    if(nrow(plot_data_for_ggplot) == 0) {
+      return(ggplot() +
+               labs(title = paste("No average daily BOE data for filtered wells by", breakout_column_r_name_cal),
+                    x = "Date", y = "Avg Daily BOE") +
+               theme_minimal())
+    }
+
+    if (!breakout_column_r_name_cal %in% names(plot_data_for_ggplot)) {
+      warning(paste("Breakout column", breakout_column_r_name_cal, "not found in calendar rate plot data for ggplot."))
+      return(ggplot() +
+               labs(title = paste("Error: Breakout column", breakout_column_r_name_cal, "not found.")) +
+               theme_void())
+    }
+
+    unique_groups_plot_cal <- unique(plot_data_for_ggplot[[breakout_column_r_name_cal]])
+    group_colors_plot_cal <- custom_palette[1:min(length(unique_groups_plot_cal), length(custom_palette))]
+    if (length(unique_groups_plot_cal) > length(custom_palette)) {
+      group_colors_plot_cal <- rep(custom_palette, length.out = length(unique_groups_plot_cal))
+    }
+    names(group_colors_plot_cal) <- unique_groups_plot_cal
+
+    ggplot(plot_data_for_ggplot,
+           aes(x = PROD_DATE, y = AvgDailyBOE_Cal,
+               color = .data[[breakout_column_r_name_cal]],
+               group = .data[[breakout_column_r_name_cal]])) +
+      geom_line(linewidth = 1.2) +
+      scale_y_continuous(labels = scales::comma) +
+      scale_x_date(date_labels = "%b %Y", date_breaks = "1 year") +
+      labs(title = paste("Average Daily BOE by",
+                         names(which(c("OperatorName" = "Operator",
+                                        "Formation" = "Formation",
+                                        "FieldName" = "Field",
+                                        "ProvinceState" = "Province/State",
+                                        "FirstProdYear" = "First Production Year") == breakout_column_r_name_cal)),
+                         "(Calendar Time)"),
+           x = "Date", y = "Avg Daily BOE",
+           color = names(which(c("OperatorName" = "Operator",
+                                 "Formation" = "Formation",
+                                 "FieldName" = "Field",
+                                 "ProvinceState" = "Province/State",
+                                 "FirstProdYear" = "First Production Year") == breakout_column_r_name_cal))) +
+      theme_minimal(base_size = 12) +
+      theme(axis.text.x = element_text(angle = 45, hjust = 1),
+            legend.position = "top") +
+      scale_color_manual(values = group_colors_plot_cal)
+  })
+  output$filtered_group_cumulative_plot_cumulative_boe <- renderPlot({
     analysis_data <- filtered_group_cumulative_data()
     req(analysis_data, analysis_data$calendar_cumulative_data)
     plot_data <- analysis_data$calendar_cumulative_data # This now contains the breakout column
@@ -1855,8 +1928,8 @@ server <- function(input, output, session) {
       geom_line(linewidth = 1.2) + 
       scale_y_continuous(labels = scales::comma) + 
       scale_x_date(date_labels = "%b %Y", date_breaks = "1 year") + 
-      labs(title = paste("Cumulative BOE Production by", names(which(c("OperatorName" = "Operator", "Formation" = "Formation", "FieldName" = "Field", "ProvinceState" = "Province/State", "CompletionYear" = "Completion Year") == breakout_column_r_name_cum)), "(Calendar Time)"), 
-           x = "Date", y = "Cumulative BOE (MBOE)", color = names(which(c("OperatorName" = "Operator", "Formation" = "Formation", "FieldName" = "Field", "ProvinceState" = "Province/State", "CompletionYear" = "Completion Year") == breakout_column_r_name_cum))) + 
+      labs(title = paste("Cumulative BOE Production by", names(which(c("OperatorName" = "Operator", "Formation" = "Formation", "FieldName" = "Field", "ProvinceState" = "Province/State", "FirstProdYear" = "First Production Year") == breakout_column_r_name_cum)), "(Calendar Time)"),
+           x = "Date", y = "Cumulative BOE (MBOE)", color = names(which(c("OperatorName" = "Operator", "Formation" = "Formation", "FieldName" = "Field", "ProvinceState" = "Province/State", "FirstProdYear" = "First Production Year") == breakout_column_r_name_cum))) +
       theme_minimal(base_size = 12) + 
       theme(axis.text.x = element_text(angle = 45, hjust = 1), legend.position = "top") +
       scale_color_manual(values = group_colors_plot_cum)
@@ -1873,7 +1946,7 @@ server <- function(input, output, session) {
     display_data <- copy(table_data)
     
     breakout_col_r_name <- input$filtered_group_breakout_by
-    breakout_col_display_name <- names(which(c("OperatorName" = "Operator", "Formation" = "Formation", "FieldName" = "Field", "ProvinceState" = "Province/State", "CompletionYear" = "Completion Year") == breakout_col_r_name))
+    breakout_col_display_name <- names(which(c("OperatorName" = "Operator", "Formation" = "Formation", "FieldName" = "Field", "ProvinceState" = "Province/State", "FirstProdYear" = "First Production Year") == breakout_col_r_name))
     if(length(breakout_col_display_name) == 0) breakout_col_display_name <- breakout_col_r_name 
     
     # Rename columns for display, ensuring the dynamic breakout column is handled
@@ -1930,7 +2003,7 @@ server <- function(input, output, session) {
   output$download_filtered_group_prod_data <- downloadHandler( 
     filename = function() { 
       breakout_col_r_name <- input$filtered_group_breakout_by
-      breakout_col_display_name_fn <- names(which(c("OperatorName" = "Operator", "Formation" = "Formation", "FieldName" = "Field", "ProvinceState" = "Province_State", "CompletionYear" = "Completion_Year") == breakout_col_r_name))
+      breakout_col_display_name_fn <- names(which(c("OperatorName" = "Operator", "Formation" = "Formation", "FieldName" = "Field", "ProvinceState" = "Province_State", "FirstProdYear" = "First_Production_Year") == breakout_col_r_name))
       if(length(breakout_col_display_name_fn)==0) breakout_col_display_name_fn <- breakout_col_r_name
       paste0("filtered_group_prod_by_", tolower(gsub("(/| )", "_", breakout_col_display_name_fn)), "_", Sys.Date(), ".csv") 
     }, 
@@ -1942,10 +2015,10 @@ server <- function(input, output, session) {
       if(!is.null(data_dl) && nrow(data_dl) > 0) {
         breakout_col_r_name <- input$filtered_group_breakout_by # Original R name
         breakout_col_dl_name_map <- c("OperatorName" = "Group_By_Operator", 
-                                      "Formation" = "Group_By_Formation", 
-                                      "FieldName" = "Group_By_Field", 
-                                      "ProvinceState" = "Group_By_Province_State", 
-                                      "CompletionYear" = "Group_By_Completion_Year")
+                                      "Formation" = "Group_By_Formation",
+                                      "FieldName" = "Group_By_Field",
+                                      "ProvinceState" = "Group_By_Province_State",
+                                      "FirstProdYear" = "Group_By_First_Prod_Year")
         breakout_col_dl_name <- breakout_col_dl_name_map[breakout_col_r_name]
         if(is.na(breakout_col_dl_name)) breakout_col_dl_name <- breakout_col_r_name
         
